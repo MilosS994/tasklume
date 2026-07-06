@@ -1,8 +1,19 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
+
+const IS_PRODUCTION = (process.env.NODE_ENV as string) === 'production';
+
+const pipeOptions = {
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  transform: true,
+  disableErrorMessages: IS_PRODUCTION,
+};
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(new ValidationPipe(pipeOptions));
   await app.listen(process.env.PORT ?? 3000);
 }
 
