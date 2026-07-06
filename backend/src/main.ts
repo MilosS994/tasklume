@@ -9,9 +9,9 @@ async function bootstrap() {
 bootstrap()
   .then(() => {
     console.log(`
-      ==============================
-      Server is running on port ${process.env.PORT ?? 3000}
-      ==============================
+      =============================================
+      Server is running on http://localhost:${process.env.PORT ?? 3000}
+      =============================================
       `);
   })
   .catch((error) => {

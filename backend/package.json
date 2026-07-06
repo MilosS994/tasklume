@@ -1,8 +1,8 @@
 {
   "name": "backend",
   "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "description": "Task management application backend built with NestJS",
+  "author": "Milos Srejic",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
