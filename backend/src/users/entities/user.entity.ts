@@ -1,4 +1,18 @@
+import { Exclude } from 'class-transformer';
+
 export class User {
+  id: string;
+  email: string;
+  username: string;
+
+  @Exclude()
+  passwordHash: string;
+
+  fullName: string;
+  role: 'user' | 'admin';
+  createdAt: Date;
+  updatedAt: Date;
+
   constructor(
     id: string,
     email: string,
@@ -18,12 +32,4 @@ export class User {
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
-  id: string;
-  email: string;
-  username: string;
-  passwordHash: string;
-  fullName: string;
-  role: 'user' | 'admin';
-  createdAt: Date;
-  updatedAt: Date;
 }
