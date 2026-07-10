@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 
 const IS_PRODUCTION = (process.env.NODE_ENV as string) === 'production';
 
@@ -13,6 +13,9 @@ const pipeOptions = {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.setGlobalPrefix('api/v1', {
+    exclude: [{ path: 'health', method: RequestMethod.GET }],
+  });
   app.useGlobalPipes(new ValidationPipe(pipeOptions));
   await app.listen(process.env.PORT ?? 3000);
 }
