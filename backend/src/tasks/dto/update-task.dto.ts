@@ -6,5 +6,5 @@ import { IsEnum, IsOptional } from 'class-validator';
 export class UpdateTaskDto extends PartialType(CreateTaskDto) {
   @IsOptional()
   @IsEnum(TaskStatus)
-  status!: TaskStatus;
+  status?: TaskStatus;
 }

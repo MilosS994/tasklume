@@ -8,7 +8,7 @@ export class User {
   @Exclude()
   passwordHash: string;
 
-  fullName: string;
+  fullName?: string | null;
   role: 'user' | 'admin';
   createdAt: Date;
   updatedAt: Date;
@@ -18,7 +18,7 @@ export class User {
     email: string,
     username: string,
     passwordHash: string,
-    fullName: string,
+    fullName: string | null | undefined,
     role: 'user' | 'admin',
     createdAt: Date,
     updatedAt: Date,
@@ -27,7 +27,7 @@ export class User {
     this.email = email;
     this.username = username;
     this.passwordHash = passwordHash;
-    this.fullName = fullName;
+    this.fullName = fullName ?? null;
     this.role = role;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;

@@ -2,7 +2,7 @@ export class Task {
   readonly id: string;
   readonly userId: string;
   title: string;
-  description: string;
+  description?: string;
   priority: 'low' | 'medium' | 'high';
   status: 'todo' | 'in_progress' | 'done';
   readonly createdAt: Date;
@@ -12,7 +12,7 @@ export class Task {
     id: string,
     userId: string,
     title: string,
-    description: string,
+    description: string | undefined,
     priority: 'low' | 'medium' | 'high',
     status: 'todo' | 'in_progress' | 'done',
     createdAt: Date,

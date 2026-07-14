@@ -26,14 +26,15 @@ export class CreateTaskDto {
   @MaxLength(55, { message: 'Title must not exceed 55 characters' })
   readonly title!: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(3, { message: 'Description must be at least 3 characters long' })
   @MaxLength(555, { message: 'Description must not exceed 555 characters' })
-  readonly description!: string;
+  readonly description?: string;
 
   @IsOptional()
   @IsEnum(TaskPriority, {
     message: 'Task priority must be low, medium or high',
   })
-  readonly priority!: TaskPriority;
+  readonly priority?: TaskPriority;
 }
