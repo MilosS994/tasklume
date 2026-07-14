@@ -6,104 +6,122 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
-import bcrypt from 'bcryptjs';
-import { randomUUID } from 'crypto';
+import * as bcrypt from 'bcryptjs';
+import { PrismaService } from '../prisma/prisma.service';
+
+interface UserUpdateData {
+  username?: string;
+  email?: string;
+  fullName?: string;
+  passwordHash?: string;
+}
 
 @Injectable()
 export class UsersService {
-  private users: User[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor() {
-    const defaultPasswordHash = bcrypt.hashSync('Admin12345', 10);
-
-    this.users.push(
-      new User(
-        randomUUID(),
-        'admin@taskflow.local',
-        'admin',
-        defaultPasswordHash,
-        'Glavni Admin',
-        'admin',
-        new Date(),
-        new Date(),
-      ),
+  private toDomain(row: {
+    id: string;
+    email: string;
+    username: string;
+    passwordHash: string;
+    fullName: string | null;
+    role: 'user' | 'admin';
+    createdAt: Date;
+    updatedAt: Date;
+  }): User {
+    return new User(
+      row.id,
+      row.email,
+      row.username,
+      row.passwordHash,
+      row.fullName,
+      row.role,
+      row.createdAt,
+      row.updatedAt,
     );
   }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const userExists = this.users.find(
-      (user) => user.email === createUserDto.email,
-    );
+    const userExists = await this.prisma.user.findUnique({
+      where: { email: createUserDto.email },
+    });
+
     if (userExists) {
       throw new BadRequestException('User with this email already exists');
     }
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
-    const newUser = new User(
-      randomUUID(),
-      createUserDto.email,
-      createUserDto.username,
-      hashedPassword,
-      '',
-      'user',
-      new Date(),
-      new Date(),
-    );
+    const user = await this.prisma.user.create({
+      data: {
+        username: createUserDto.username,
+        email: createUserDto.email,
+        passwordHash: hashedPassword,
+      },
+    });
 
-    this.users.push(newUser);
-
-    return newUser;
+    return this.toDomain(user);
   }
 
-  findAll() {
-    return this.users;
+  async findAll(): Promise<User[]> {
+    const users = await this.prisma.user.findMany({});
+
+    return users.map((user) => this.toDomain(user));
   }
 
-  findOne(id: string) {
-    const user = this.users.find((user) => id === user.id);
+  async findOne(id: string): Promise<User> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
 
     if (!user) {
-      throw new NotFoundException(`User with id ${id} not found.`);
+      throw new NotFoundException('User not found');
     }
 
-    return user;
+    return this.toDomain(user);
   }
 
-  findByEmail(email: string) {
-    const user = this.users.find((user) => user.email === email);
+  async findByEmail(email: string): Promise<User | null> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
 
-    return user ?? undefined;
+    return user ? this.toDomain(user) : null;
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = this.findOne(id);
+    await this.findOne(id);
+
+    const dataToUpdate: UserUpdateData = {};
+
+    if (updateUserDto.username) {
+      dataToUpdate.username = updateUserDto.username;
+    }
 
     if (updateUserDto.email) {
-      user.email = updateUserDto.email;
+      dataToUpdate.email = updateUserDto.email;
     }
-    if (updateUserDto.username) {
-      user.username = updateUserDto.username;
+
+    if (updateUserDto.fullName) {
+      dataToUpdate.fullName = updateUserDto.fullName;
     }
 
     if (updateUserDto.password) {
-      user.passwordHash = await bcrypt.hash(updateUserDto.password, 10);
+      dataToUpdate.passwordHash = await bcrypt.hash(updateUserDto.password, 10);
     }
 
-    user.updatedAt = new Date();
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: dataToUpdate,
+    });
 
-    return user;
+    return this.toDomain(updatedUser);
   }
 
-  remove(id: string) {
-    const userIndex = this.users.findIndex((user) => user.id === id);
+  async remove(id: string) {
+    await this.findOne(id);
 
-    if (userIndex === -1) {
-      throw new NotFoundException(`User with id ${id} not found.`);
-    }
+    await this.prisma.user.delete({ where: { id } });
 
-    this.users.splice(userIndex, 1);
-
-    return { message: 'User deleted successfully.' };
+    return {
+      message: 'User deleted successfully',
+    };
   }
 }
