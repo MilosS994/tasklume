@@ -16,7 +16,7 @@ export class TasksService {
       createTaskDto.title,
       createTaskDto.description,
 
-      createTaskDto.priority || ('medium' as any),
+      createTaskDto.priority || 'medium',
       TaskStatus.TODO,
       new Date(),
       new Date(),

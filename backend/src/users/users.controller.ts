@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
 } from '@nestjs/common';
+import { SelfOrAdminGuard } from './self-or-admin.guard';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -37,21 +38,27 @@ export class UsersController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles('admin')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }
 
   @Get('email/:email')
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles('admin')
   findOneByEmail(@Param('email') email: string) {
     return this.usersService.findByEmail(email);
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }
