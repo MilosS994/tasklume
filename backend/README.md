@@ -1,98 +1,169 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Tasklume — Task Management API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A REST API for managing personal tasks, built with **NestJS**, **Prisma ORM**, and **PostgreSQL**. It comes with a full authentication and authorization layer — JWT-based login, role-based access control, and per-resource ownership checks — plus the kind of production-hardening (validation, rate limiting, centralized error handling, secure headers).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## What this project actually does
 
-## Project setup
+Tasklume lets a user register, log in, and manage their own list of tasks (create, read, update, delete), each with a priority and a status. Admins get a wider view — they can manage all user accounts. That's the whole product surface. The interesting part is _how_ it's built underneath: who's allowed to do what, and what happens when something goes wrong.
 
-```bash
-$ npm install
-```
+## Features
 
-## Compile and run the project
+- **JWT authentication** — register and log in, get back a signed access token.
+- **Role-based access control** — routes like "list all users" are restricted to admins via a reusable `@Roles()` decorator.
+- **Resource ownership checks** — a regular user can only edit or delete _their own_ account and _their own_ tasks. An admin can act on anyone's. This is enforced by dedicated guards, not by convention or hope.
+- **Centralized input validation** — every incoming request body is validated and sanitized (unknown fields are stripped, not silently accepted) before it ever reaches business logic.
+- **Rate limiting** — general endpoints allow generous traffic; `login` and `register` are throttled much more tightly, since they're the two routes most attractive to brute-force attempts.
+- **Centralized database error handling** — a global exception filter translates Prisma's internal error codes (like a unique-constraint violation) into clean, correct HTTP responses (`409 Conflict`, `404 Not Found`, etc.) instead of leaking a raw 500 with database internals.
+- **Secure by default** — Helmet sets sensible security headers, CORS is explicitly configured rather than left wide open, and passwords are always hashed before they touch the database.
 
-```bash
-# development
-$ npm run start
+## Tech Stack
 
-# watch mode
-$ npm run start:dev
+| Layer            | Choice                                                                            |
+| ---------------- | --------------------------------------------------------------------------------- |
+| Framework        | [NestJS](https://nestjs.com/) 11                                                  |
+| Language         | TypeScript                                                                        |
+| Database         | PostgreSQL                                                                        |
+| ORM              | [Prisma](https://www.prisma.io/) 7 (with the `@prisma/adapter-pg` driver adapter) |
+| Auth             | Passport + `@nestjs/jwt`                                                          |
+| Validation       | `class-validator` / `class-transformer`                                           |
+| Security         | `helmet`, `@nestjs/throttler`                                                     |
+| Password hashing | `bcryptjs`                                                                        |
+| Containerization | Docker / Docker Compose                                                           |
 
-# production mode
-$ npm run start:prod
-```
+## Authorization model
 
-## Run tests
+There isn't just one gate on these routes — there are three different guards, each answering a different question, stacked in the order that makes sense:
 
-```bash
-# unit tests
-$ npm run test
+1. **`JwtAuthGuard`** — _"Are you logged in at all?"_ Validates the JWT from the `Authorization` header and, if valid, attaches the decoded user to the request.
+2. **`RolesGuard`** — _"Does your role allow this?"_ Reads a `@Roles('admin')` marker off the route and compares it against the logged-in user's role. Used for admin-only endpoints like listing every user.
+3. **`SelfOrAdminGuard`** / **`TaskOwnerGuard`** — _"Is this actually yours?"_ For routes that operate on a specific resource (`PATCH /users/:id`, `DELETE /tasks/:id`), these guards check whether the resource belongs to the logged-in user — or whether they're an admin, who can bypass the ownership check. `TaskOwnerGuard` looks the task up in the database first, since ownership of a _task_ can't be inferred from the URL alone the way it can for a user.
+   The short version: authentication and authorization are handled in one consistent place (guards), not scattered through `if` statements inside service methods.
 
-# e2e tests
-$ npm run test:e2e
+## Getting Started
 
-# test coverage
-$ npm run test:cov
-```
+There are two ways to run this locally — pick whichever fits.
 
-## Deployment
+### Option A: Docker (recommended)
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+The whole stack — API and database — runs with one command, no local Node.js or PostgreSQL install required.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+**Prerequisites:** Docker and Docker Compose.
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+git clone <repository-url>
+cd backend
+cp .env.example .env   # fill in JWT_SECRET at minimum
+docker compose up --build
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+The API will be available at `http://localhost:3000/api/v1`. Database migrations still need to be applied once, from your host machine, against the exposed Postgres port:
 
-## Resources
+```bash
+npx prisma migrate dev
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+### Option B: Running natively
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+#### Prerequisites
 
-## Support
+- Node.js 20+
+- npm
+- A running PostgreSQL instance (local or hosted)
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+#### Installation
 
-## Stay in touch
+```bash
+git clone <repository-url>
+cd backend
+npm install
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+#### Environment variables
+
+Create a `.env` file in the project root (see `.env.example` for a template):
+
+| Variable       | Description                                                                 | Example                                                               |
+| -------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `DATABASE_URL` | PostgreSQL connection string                                                | `postgresql://user:password@localhost:5432/tasklume_db?schema=public` |
+| `JWT_SECRET`   | Secret used to sign access tokens — generate with `openssl rand -base64 48` | `a-long-random-string`                                                |
+| `CORS_ORIGIN`  | Comma-separated allowed origins (production only)                           | `https://tasklume.app`                                                |
+| `PORT`         | Port the server listens on                                                  | `3000`                                                                |
+| `NODE_ENV`     | Environment mode                                                            | `development`                                                         |
+
+#### Database setup
+
+```bash
+npx prisma migrate dev   # applies migrations locally and creates the DB schema
+```
+
+#### Running the app
+
+```bash
+npm run start:dev   # development, with hot reload
+npm run build        # compile for production
+npm run start:prod   # run the compiled build
+```
+
+The API is served under the `/api/v1` prefix, e.g. `http://localhost:3000/api/v1/auth/login`.
+
+## API Reference
+
+### Auth
+
+| Method | Route            | Auth required | Description                      |
+| ------ | ---------------- | ------------- | -------------------------------- |
+| POST   | `/auth/register` | —             | Create a new account             |
+| POST   | `/auth/login`    | —             | Log in, receive a JWT            |
+| GET    | `/auth/me`       | ✅            | Get the currently logged-in user |
+
+### Users
+
+| Method | Route        | Auth required | Description      |
+| ------ | ------------ | ------------- | ---------------- |
+| GET    | `/users`     | Admin         | List all users   |
+| GET    | `/users/:id` | Admin         | Get a user by ID |
+| PATCH  | `/users/:id` | Self or Admin | Update a user    |
+| DELETE | `/users/:id` | Self or Admin | Delete a user    |
+
+### Tasks
+
+| Method | Route        | Auth required  | Description                          |
+| ------ | ------------ | -------------- | ------------------------------------ |
+| POST   | `/tasks`     | ✅             | Create a task for the logged-in user |
+| GET    | `/tasks`     | ✅             | List the logged-in user's tasks      |
+| GET    | `/tasks/:id` | Owner or Admin | Get a single task                    |
+| PATCH  | `/tasks/:id` | Owner or Admin | Update a task                        |
+| DELETE | `/tasks/:id` | Owner or Admin | Delete a task                        |
+
+## Available Scripts
+
+| Command              | What it does                            |
+| -------------------- | --------------------------------------- |
+| `npm run start:dev`  | Run in watch mode for local development |
+| `npm run build`      | Compile TypeScript to `dist/`           |
+| `npm run start:prod` | Run the compiled app (`dist/main.js`)   |
+| `npm run lint`       | Lint and auto-fix with ESLint           |
+| `npm run format`     | Format the codebase with Prettier       |
+| `npm test`           | Run unit tests                          |
+| `npm run test:e2e`   | Run end-to-end tests                    |
+
+## Data Model
+
+- **User** — email, username, hashed password, optional full name, role (`user` / `admin`).
+- **Task** — title, optional description, priority (`low` / `medium` / `high`), status (`todo` / `in_progress` / `done`), owned by a `User`.
+  Full schema lives in `prisma/schema.prisma`.
+
+## Live Demo
+
+🚧 Coming soon — being deployed on [Render](https://render.com).
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+This project is unlicensed / private, built as a personal portfolio project by **Miloš Srejić**.

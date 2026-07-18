@@ -4,6 +4,7 @@ import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { HttpAdapterHost } from '@nestjs/core';
 import { PrismaExceptionFilter } from './prisma/prisma-exception.filter';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -15,7 +16,8 @@ const pipeOptions = {
 };
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.set('trust proxy', 1);
 
   const { httpAdapter } = app.get(HttpAdapterHost);
   app.useGlobalFilters(new PrismaExceptionFilter(httpAdapter));
