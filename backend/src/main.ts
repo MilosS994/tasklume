@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 
-const IS_PRODUCTION = (process.env.NODE_ENV as string) === 'production';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const pipeOptions = {
   whitelist: true,
