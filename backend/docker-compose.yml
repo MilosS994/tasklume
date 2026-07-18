@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres-db:
     image: postgres:16-alpine
@@ -12,6 +10,26 @@ services:
       POSTGRES_DB: tasklume_db
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tasklume_user -d tasklume_db']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tasklume-backend
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://tasklume_user:tasklume_password@postgres-db:5432/tasklume_db?schema=public
+    depends_on:
+      postgres-db:
+        condition: service_healthy
 
 volumes:
   postgres-data:

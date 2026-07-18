@@ -8,17 +8,20 @@ import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import type { JwtPayload } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
+import { Throttle, seconds } from '@nestjs/throttler';
 
 @UseInterceptors(ClassSerializerInterceptor)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ default: { limit: 5, ttl: seconds(60) } })
   @Post('/register')
   register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
   }
 
+  @Throttle({ default: { limit: 5, ttl: seconds(60) } })
   @Post('/login')
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);

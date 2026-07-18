@@ -1,6 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
+import { HttpAdapterHost } from '@nestjs/core';
+import { PrismaExceptionFilter } from './prisma/prisma-exception.filter';
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -13,16 +16,23 @@ const pipeOptions = {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('api/v1', {
-    exclude: [{ path: 'health', method: RequestMethod.GET }],
-  });
-  app.useGlobalPipes(new ValidationPipe(pipeOptions));
 
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new PrismaExceptionFilter(httpAdapter));
+
+  // Helmet configuration
+  app.use(helmet());
   // CORS configuration
   app.enableCors({
     origin: IS_PRODUCTION ? (process.env.CORS_ORIGIN?.split(',') ?? []) : true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
+
+  app.setGlobalPrefix('api/v1', {
+    exclude: [{ path: 'health', method: RequestMethod.GET }],
+  });
+  app.useGlobalPipes(new ValidationPipe(pipeOptions));
+
   await app.listen(process.env.PORT ?? 3000);
 }
 
