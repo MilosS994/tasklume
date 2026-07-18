@@ -3,7 +3,8 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -24,19 +25,19 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const user = this.usersService.findByEmail(loginDto.email);
+    const user = await this.usersService.findByEmail(loginDto.email);
 
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    const isValidPassword = await bcrypt.compare(
+    const isPasswordValid = await bcrypt.compare(
       loginDto.password,
       user.passwordHash,
     );
 
-    if (!isValidPassword) {
-      throw new UnauthorizedException('Invalid email or password');
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const payload = { sub: user.id, username: user.username, role: user.role };
@@ -47,5 +48,9 @@ export class AuthService {
     };
   }
 
-  async getMe() {}
+  async getMe(id: string): Promise<User> {
+    const user = await this.usersService.findOne(id);
+
+    return user;
+  }
 }
