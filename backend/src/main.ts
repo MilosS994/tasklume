@@ -17,6 +17,12 @@ async function bootstrap() {
     exclude: [{ path: 'health', method: RequestMethod.GET }],
   });
   app.useGlobalPipes(new ValidationPipe(pipeOptions));
+
+  // CORS configuration
+  app.enableCors({
+    origin: IS_PRODUCTION ? (process.env.CORS_ORIGIN?.split(',') ?? []) : true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  });
   await app.listen(process.env.PORT ?? 3000);
 }
 
