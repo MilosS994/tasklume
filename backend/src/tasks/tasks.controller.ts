@@ -13,6 +13,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { JwtAuthGuard, type JwtPayload } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { TaskOwnerGuard } from './task-owner.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
@@ -33,16 +34,19 @@ export class TasksController {
   }
 
   @Get(':id')
+  @UseGuards(TaskOwnerGuard)
   findOne(@Param('id') id: string) {
     return this.tasksService.findOne(id);
   }
 
   @Patch(':id')
+  @UseGuards(TaskOwnerGuard)
   update(@Param('id') id: string, @Body() updateTaskDto: UpdateTaskDto) {
     return this.tasksService.update(id, updateTaskDto);
   }
 
   @Delete(':id')
+  @UseGuards(TaskOwnerGuard)
   remove(@Param('id') id: string) {
     return this.tasksService.remove(id);
   }
