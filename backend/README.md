@@ -162,7 +162,7 @@ The API is served under the `/api/v1` prefix, e.g. `http://localhost:3000/api/v1
 
 ## Live Demo
 
-🚧 Coming soon — being deployed on [Render](https://render.com).
+[Render](https://tasklume-backend.onrender.com).
 
 ## License
 
